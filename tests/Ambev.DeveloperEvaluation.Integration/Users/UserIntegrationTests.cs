@@ -6,42 +6,50 @@ using Ambev.DeveloperEvaluation.WebApi.Common;
 using Ambev.DeveloperEvaluation.Domain.Enums;
 using FluentAssertions;
 using Xunit;
+using Bogus;
 
 namespace Ambev.DeveloperEvaluation.Integration.Users;
 
 public class UserIntegrationTests : IClassFixture<WebApiFactory>
 {
     private readonly HttpClient _client;
+    private readonly Faker _faker;
 
     public UserIntegrationTests(WebApiFactory factory)
     {
         _client = factory.CreateClient();
+        _faker = new Faker("pt_BR");
     }
 
     [Fact(DisplayName = "POST /api/users - deve criar um usuário com sucesso.")]
     public async Task CreateUser_ReturnsSuccess()
     {
-        var command = new CreateUserCommand // Ou use CreateUserRequest se o controller espera isso
+        var command = new CreateUserCommand
         {
-            Username = "teste.integration",
-            Password = "Test@12345",
-            Email = $"integration_{Guid.NewGuid()}@ambev.com",
-            Phone = "+5511999999999",
+            Username = _faker.Internet.UserName(),
+            Password = $"P@ss{_faker.Internet.DomainWord()}{_faker.Random.Number(10, 99)}!",
+            Email = _faker.Internet.Email(provider: "test.ambev.com"),
+            Phone = _faker.Random.ReplaceNumbers("###########"),
             Status = UserStatus.Active,
             Role = UserRole.Customer
         };
 
-        var response = await _client.PostAsJsonAsync("/api/users", command); // Envia CreateUserCommand ou CreateUserRequest
+        var response = await _client.PostAsJsonAsync("/api/users", command);
 
-        // 👇👇👇 CORREÇÃO AQUI 👇👇👇
-        // Leia como ApiResponseWithData<T> e pegue o .Data
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorContent = await response.Content.ReadAsStringAsync();
+
+            response.StatusCode.Should().Be(HttpStatusCode.Created, $"API returned {response.StatusCode} with content: {errorContent}");
+        }
+
         var apiResponse = await response.Content.ReadFromJsonAsync<ApiResponseWithData<CreateUserResponse>>();
         var result = apiResponse?.Data;
-        // 👆👆👆 CORREÇÃO AQUI 👆👆👆
 
-        response.StatusCode.Should().Be(HttpStatusCode.Created); // Status 201 é o correto aqui
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
         result.Should().NotBeNull();
-        result!.Id.Should().NotBe(Guid.Empty); // Agora deve funcionar
+        result!.Id.Should().NotBe(Guid.Empty);
     }
 
     [Fact(DisplayName = "GET /api/users/{id} - deve retornar 404 ao buscar um usuário inexistente.")]
