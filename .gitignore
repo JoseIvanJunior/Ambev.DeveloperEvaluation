@@ -361,3 +361,4 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/src/Ambev.DeveloperEvaluation.Domain/Entities/Product.cs
