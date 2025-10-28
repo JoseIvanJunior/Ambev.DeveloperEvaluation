@@ -1,18 +1,18 @@
 ﻿namespace Ambev.DeveloperEvaluation.Application.Products.GetProduct;
 
-public class GetProductResult
+public record GetProductResult
 {
-    public Guid Id { get; set; }
+    public Guid Id { get; init; }
 
-    public string Name { get; set; } = string.Empty;
+    public string Name { get; init; } = string.Empty;
 
-    public string Description { get; set; } = string.Empty;
+    public string Description { get; init; } = string.Empty;
 
-    public decimal Price { get; set; }
+    public decimal Price { get; init; }
 
-    public int StockQuantity { get; set; }
+    public int StockQuantity { get; init; }
 
-    public DateTime CreatedAt { get; set; }
+    public DateTime CreatedAt { get; init; }
 
-    public DateTime? UpdatedAt { get; set; }
+    public DateTime? UpdatedAt { get; init; }
 }

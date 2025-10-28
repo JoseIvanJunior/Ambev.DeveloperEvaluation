@@ -7,7 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System.Linq;
 
-namespace Ambev.DeveloperEvaluation.Integration.Users;
+namespace Ambev.DeveloperEvaluation.Integration;
 
 public class WebApiFactory : WebApplicationFactory<Program>
 {

@@ -4,12 +4,12 @@ using Ambev.DeveloperEvaluation.Application.Products.CreateProduct;
 using Ambev.DeveloperEvaluation.Application.Products.GetProduct;
 using Ambev.DeveloperEvaluation.Application.Products.UpdateProduct;
 using Ambev.DeveloperEvaluation.Application.Products.DeleteProduct;
+using Ambev.DeveloperEvaluation.Application.Products.GetProducts;
 using Ambev.DeveloperEvaluation.WebApi.Features.Products.CreateProduct;
 using Ambev.DeveloperEvaluation.WebApi.Features.Products.GetProduct;
 using Ambev.DeveloperEvaluation.WebApi.Features.Products.UpdateProduct;
 using Ambev.DeveloperEvaluation.WebApi.Common;
-using Ambev.DeveloperEvaluation.Domain.Repositories;
-using Ambev.DeveloperEvaluation.Domain.Entities;
+using AutoMapper;
 
 namespace Ambev.DeveloperEvaluation.WebApi.Features.Products;
 
@@ -18,12 +18,12 @@ namespace Ambev.DeveloperEvaluation.WebApi.Features.Products;
 public class ProductsController : BaseController
 {
     private readonly IMediator _mediator;
-    private readonly IProductRepository _productRepository;
+    private readonly IMapper _mapper;
 
-    public ProductsController(IMediator mediator, IProductRepository productRepository)
+    public ProductsController(IMediator mediator, IMapper mapper)
     {
         _mediator = mediator;
-        _productRepository = productRepository;
+        _mapper = mapper;
     }
 
     [HttpPost]
@@ -33,20 +33,9 @@ public class ProductsController : BaseController
         [FromBody] CreateProductRequest request,
         CancellationToken cancellationToken = default)
     {
-        var command = new CreateProductCommand
-        {
-            Name = request.Name,
-            Description = request.Description,
-            Price = request.Price,
-            StockQuantity = request.StockQuantity
-        };
-
+        var command = _mapper.Map<CreateProductCommand>(request);
         var result = await _mediator.Send(command, cancellationToken);
-
-        var response = new CreateProductResponse
-        {
-            Id = result.Id
-        };
+        var response = _mapper.Map<CreateProductResponse>(result);
 
         return CreatedAtAction(
             nameof(GetProductById),
@@ -55,7 +44,7 @@ public class ProductsController : BaseController
             {
                 Success = true,
                 Data = response,
-                Message = "Product created successfully"
+                Message = "Produtos criados com sucesso"
             });
     }
 
@@ -74,26 +63,17 @@ public class ProductsController : BaseController
             return NotFound(new ApiResponse
             {
                 Success = false,
-                Message = "Product not found"
+                Message = "Produto não encontrado"
             });
         }
 
-        var response = new GetProductResponse
-        {
-            Id = result.Id,
-            Name = result.Name,
-            Description = result.Description,
-            Price = result.Price,
-            StockQuantity = result.StockQuantity,
-            CreatedAt = result.CreatedAt,
-            UpdatedAt = result.UpdatedAt
-        };
+        var response = _mapper.Map<GetProductResponse>(result);
 
         return Ok(new ApiResponseWithData<GetProductResponse>
         {
             Success = true,
             Data = response,
-            Message = "Product retrieved successfully"
+            Message = "Produtos recuperados com sucesso"
         });
     }
 
@@ -102,24 +82,15 @@ public class ProductsController : BaseController
     public async Task<IActionResult> GetAllProducts(
         CancellationToken cancellationToken = default)
     {
-        var products = await _productRepository.GetAllAsync(cancellationToken);
-
-        var response = products.Select(product => new GetProductResponse
-        {
-            Id = product.Id,
-            Name = product.Name,
-            Description = product.Description,
-            Price = product.Price,
-            StockQuantity = product.StockQuantity,
-            CreatedAt = product.CreatedAt,
-            UpdatedAt = product.UpdatedAt
-        });
+        var query = new GetProductsQuery();
+        var result = await _mediator.Send(query, cancellationToken);
+        var response = _mapper.Map<IEnumerable<GetProductResponse>>(result);
 
         return Ok(new ApiResponseWithData<IEnumerable<GetProductResponse>>
         {
             Success = true,
             Data = response,
-            Message = "Products retrieved successfully"
+            Message = "Produtos recuperados com sucesso"
         });
     }
 
@@ -132,32 +103,17 @@ public class ProductsController : BaseController
         [FromBody] UpdateProductRequest request,
         CancellationToken cancellationToken = default)
     {
-        var command = new UpdateProductCommand
-        {
-            Id = id,
-            Name = request.Name,
-            Description = request.Description,
-            Price = request.Price,
-            StockQuantity = request.StockQuantity
-        };
+        var command = _mapper.Map<UpdateProductCommand>(request);
+        command.Id = id;
 
         var result = await _mediator.Send(command, cancellationToken);
-
-        var response = new UpdateProductResponse
-        {
-            Id = result.Id,
-            Name = result.Name,
-            Description = result.Description,
-            Price = result.Price,
-            StockQuantity = result.StockQuantity,
-            UpdatedAt = result.UpdatedAt
-        };
+        var response = _mapper.Map<UpdateProductResponse>(result);
 
         return Ok(new ApiResponseWithData<UpdateProductResponse>
         {
             Success = true,
             Data = response,
-            Message = "Product updated successfully"
+            Message = "Produto atualizado com sucesso"
         });
     }
 
@@ -176,14 +132,14 @@ public class ProductsController : BaseController
             return NotFound(new ApiResponse
             {
                 Success = false,
-                Message = "Product not found"
+                Message = "Produto não encontrado"
             });
         }
 
         return Ok(new ApiResponse
         {
             Success = true,
-            Message = "Product deleted successfully"
+            Message = "Produto excluído com sucesso"
         });
     }
 }

@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
 using System.Reflection;
+using BCrypt.Net;
 
 namespace Ambev.DeveloperEvaluation.ORM;
 
@@ -26,13 +27,14 @@ public class DefaultContext : DbContext
             Id = new Guid("b37b4d38-8dc7-45b4-b8e0-5a4ef2b2ad21"),
             Username = "Administrador",
             Email = "admin@ambev.com",
-            Password = "Admin@12345",
+            Password = BCrypt.Net.BCrypt.HashPassword("Admin@12345"),
             Role = UserRole.Admin,
             Status = UserStatus.Active,
             Phone = "+5511999999999"
         });
     }
 }
+
 public class YourDbContextFactory : IDesignTimeDbContextFactory<DefaultContext>
 {
     public DefaultContext CreateDbContext(string[] args)
@@ -46,8 +48,8 @@ public class YourDbContextFactory : IDesignTimeDbContextFactory<DefaultContext>
         var connectionString = configuration.GetConnectionString("DefaultConnection");
 
         builder.UseNpgsql(
-               connectionString,
-               b => b.MigrationsAssembly("Ambev.DeveloperEvaluation.ORM")
+                connectionString,
+                b => b.MigrationsAssembly("Ambev.DeveloperEvaluation.ORM")
         );
 
         return new DefaultContext(builder.Options);

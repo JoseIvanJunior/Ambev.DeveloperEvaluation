@@ -32,7 +32,17 @@ public class CreateProductHandler : IRequestHandler<CreateProductCommand, Create
         var product = _mapper.Map<Product>(command);
         var createdProduct = await _productRepository.CreateAsync(product, cancellationToken);
 
-        var result = _mapper.Map<CreateProductResult>(createdProduct);
+        // Mapeamento manual garantindo que todas as propriedades sejam preenchidas
+        var result = new CreateProductResult
+        {
+            Id = createdProduct.Id,
+            Name = createdProduct.Name,
+            Description = createdProduct.Description,
+            Price = createdProduct.Price,
+            StockQuantity = createdProduct.StockQuantity,
+            CreatedAt = createdProduct.CreatedAt
+        };
+
         return result;
     }
 }
