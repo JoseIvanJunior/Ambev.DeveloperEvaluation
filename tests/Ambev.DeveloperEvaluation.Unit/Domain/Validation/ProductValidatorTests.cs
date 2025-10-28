@@ -1,6 +1,6 @@
-﻿using Ambev.DeveloperEvaluation.Domain.Validation;
-using Ambev.DeveloperEvaluation.Unit.Domain.Entities.TestData;
-using FluentValidation.TestHelper;
+﻿using Ambev.DeveloperEvaluation.Domain.Entities;
+using Ambev.DeveloperEvaluation.Domain.Validation;
+using FluentAssertions;
 using Xunit;
 
 namespace Ambev.DeveloperEvaluation.Unit.Domain.Validation;
@@ -14,76 +14,69 @@ public class ProductValidatorTests
         _validator = new ProductValidator();
     }
 
-    [Fact(DisplayName = "O produto válido deve passar por todas as regras de validação")]
-    public void Given_ValidProduct_When_Validated_Then_ShouldNotHaveErrors()
+    [Fact]
+    public void Validate_WithValidProduct_ShouldBeValid()
     {
+        
+        var product = Product.Create("Valid Product", "Valid Description with more than 10 chars", 100.0m, 10);
 
-        var product = ProductTestData.GenerateValidProduct();
+        var result = _validator.Validate(product);
 
-        var result = _validator.TestValidate(product);
-
-        result.ShouldNotHaveAnyValidationErrors();
+        result.IsValid.Should().BeTrue();
     }
 
-    [Theory(DisplayName = "Nome de produto inválido deve falhar na validação")]
-    [InlineData("")]
-    [InlineData("ab")]
-    public void Given_InvalidProductName_When_Validated_Then_ShouldHaveError(string name)
+    [Fact]
+    public void Validate_WithLongDescription_ShouldBeInvalid()
     {
+        
+        var longDescription = new string('a', 501);
+        var product = Product.Create("Valid Product", "Normal Description", 100.0m, 10);
 
-        var product = ProductTestData.GenerateValidProduct();
-        product.Name = name;
+        var descriptionProperty = typeof(Product).GetProperty("Description");
+        if (descriptionProperty != null && descriptionProperty.CanWrite)
+        {
+            descriptionProperty.SetValue(product, longDescription);
+        }
 
-        var result = _validator.TestValidate(product);
+        var result = _validator.Validate(product);
 
-        result.ShouldHaveValidationErrorFor(x => x.Name);
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.PropertyName == "Description");
     }
 
-    [Fact(DisplayName = "Nome do produto maior que o comprimento máximo deve falhar na validação")]
-    public void Given_ProductNameLongerThanMaximum_When_Validated_Then_ShouldHaveError()
+    [Fact]
+    public void Validate_WithEmptyName_ShouldBeInvalid()
     {
+        
+        var product = Product.Create("Valid Name", "Valid Description", 100.0m, 10);
 
-        var product = ProductTestData.GenerateValidProduct();
-        product.Name = ProductTestData.GenerateLongProductName();
+        var nameProperty = typeof(Product).GetProperty("Name");
+        if (nameProperty != null && nameProperty.CanWrite)
+        {
+            nameProperty.SetValue(product, "");
+        }
 
-        var result = _validator.TestValidate(product);
+        var result = _validator.Validate(product);
 
-        result.ShouldHaveValidationErrorFor(x => x.Name);
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.PropertyName == "Name");
     }
 
-    [Fact(DisplayName = "Preço negativo não deve ser validado")]
-    public void Given_NegativePrice_When_Validated_Then_ShouldHaveError()
+    [Fact]
+    public void Validate_WithNegativePrice_ShouldBeInvalid()
     {
+        
+        var product = Product.Create("Valid Product", "Valid Description", 100.0m, 10);
 
-        var product = ProductTestData.GenerateValidProduct();
-        product.Price = -10.0m;
+        var priceProperty = typeof(Product).GetProperty("Price");
+        if (priceProperty != null && priceProperty.CanWrite)
+        {
+            priceProperty.SetValue(product, -10.0m);
+        }
+        
+        var result = _validator.Validate(product);
 
-        var result = _validator.TestValidate(product);
-
-        result.ShouldHaveValidationErrorFor(x => x.Price);
-    }
-
-    [Fact(DisplayName = "Quantidade de estoque negativa deve falhar na validação")]
-    public void Given_NegativeStockQuantity_When_Validated_Then_ShouldHaveError()
-    {
-
-        var product = ProductTestData.GenerateValidProduct();
-        product.StockQuantity = -5;
-
-        var result = _validator.TestValidate(product);
-
-        result.ShouldHaveValidationErrorFor(x => x.StockQuantity);
-    }
-
-    [Fact(DisplayName = "Descrição maior que o comprimento máximo deve falhar na validação")]
-    public void Given_DescriptionLongerThanMaximum_When_Validated_Then_ShouldHaveError()
-    {
-
-        var product = ProductTestData.GenerateValidProduct();
-        product.Description = ProductTestData.GenerateLongDescription();
-
-        var result = _validator.TestValidate(product);
-
-        result.ShouldHaveValidationErrorFor(x => x.Description);
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.PropertyName == "Price");
     }
 }

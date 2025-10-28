@@ -9,16 +9,16 @@ public class ProductValidator : AbstractValidator<Product>
     {
         RuleFor(x => x.Name)
             .NotEmpty().WithMessage("O nome do produto é obrigatório")
-            .MinimumLength(3).WithMessage("O nome do produto deve ter pelo menos 3 caracteres")
-            .MaximumLength(200).WithMessage("O nome do produto não deve exceder 200 caracteres");
-
-        RuleFor(x => x.Price)
-            .GreaterThanOrEqualTo(0).WithMessage("O preço deve ser maior ou igual a 0");
-
-        RuleFor(x => x.StockQuantity)
-            .GreaterThanOrEqualTo(0).WithMessage("A quantidade em estoque deve ser maior ou igual a 0");
+            .MaximumLength(100).WithMessage("O nome do produto não pode exceder 100 caracteres");
 
         RuleFor(x => x.Description)
-            .MaximumLength(1000).WithMessage("A descrição não deve exceder 1000 caracteres");
+            .MaximumLength(500).WithMessage("A descrição do produto não pode exceder 500 caracteres")
+            .When(x => !string.IsNullOrEmpty(x.Description));
+
+        RuleFor(x => x.Price)
+            .GreaterThanOrEqualTo(0).WithMessage("O preço não pode ser negativo");
+
+        RuleFor(x => x.StockQuantity)
+            .GreaterThanOrEqualTo(0).WithMessage("A quantidade em estoque não pode ser negativa");
     }
 }

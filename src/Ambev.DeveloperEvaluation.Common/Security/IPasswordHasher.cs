@@ -1,24 +1,25 @@
-using System;
+using Microsoft.AspNetCore.Identity;
 
 namespace Ambev.DeveloperEvaluation.Common.Security;
 
-/// <summary>
-/// Provides functionality for hashing and verifying passwords.
-/// </summary>
 public interface IPasswordHasher
 {
-    /// <summary>
-    /// Hashes a plain text password using a secure hashing algorithm.
-    /// </summary>
-    /// <param name="password">The plain text password to hash.</param>
-    /// <returns>The hashed password.</returns>
     string HashPassword(string password);
+    bool VerifyPassword(string hashedPassword, string providedPassword);
+}
 
-    /// <summary>
-    /// Verifies if a plain text password matches a hashed password.
-    /// </summary>
-    /// <param name="password">The plain text password to verify.</param>
-    /// <param name="hash">The hashed password to compare against.</param>
-    /// <returns>True if the password matches the hash, false otherwise.</returns>
-    bool VerifyPassword(string password, string hash);
+public class PasswordHasher : IPasswordHasher
+{
+    private readonly PasswordHasher<object> _passwordHasher = new PasswordHasher<object>();
+
+    public string HashPassword(string password)
+    {
+        return _passwordHasher.HashPassword(null!, password);
+    }
+
+    public bool VerifyPassword(string hashedPassword, string providedPassword)
+    {
+        var result = _passwordHasher.VerifyHashedPassword(null!, hashedPassword, providedPassword);
+        return result == PasswordVerificationResult.Success;
+    }
 }

@@ -1,115 +1,130 @@
 ﻿using Ambev.DeveloperEvaluation.Application.Products.CreateProduct;
-using Ambev.DeveloperEvaluation.Domain.Entities;
 using Ambev.DeveloperEvaluation.Domain.Repositories;
-using Ambev.DeveloperEvaluation.Unit.Domain;
+using Ambev.DeveloperEvaluation.Domain.Entities;
+using Ambev.DeveloperEvaluation.Application.Services;
+using FluentValidation;
 using AutoMapper;
-using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
+using FluentAssertions;
 using Xunit;
 
-namespace Ambev.DeveloperEvaluation.Unit.Application;
+namespace Ambev.DeveloperEvaluation.Unit.Products;
 
 public class CreateProductHandlerTests
 {
-    private readonly IProductRepository _productRepository;
-    private readonly IMapper _mapper;
     private readonly CreateProductHandler _handler;
+    private readonly IProductRepository _productRepositoryMock;
+    private readonly IValidator<CreateProductCommand> _validatorMock;
+    private readonly IMapper _mapperMock;
+    private readonly ProductValidationService _validationService;
 
     public CreateProductHandlerTests()
     {
-        _productRepository = Substitute.For<IProductRepository>();
-        _mapper = Substitute.For<IMapper>();
-        _handler = new CreateProductHandler(_productRepository, _mapper);
+        _productRepositoryMock = Substitute.For<IProductRepository>();
+        _validatorMock = Substitute.For<IValidator<CreateProductCommand>>();
+        _mapperMock = Substitute.For<IMapper>();
+
+        _validationService = new ProductValidationService(_validatorMock, _productRepositoryMock);
+
+        _handler = new CreateProductHandler(
+            _productRepositoryMock,
+            _validationService,
+            _mapperMock);
     }
 
-    [Fact(DisplayName = "Dados válidos do produto fornecidos ao criar o produto e, em seguida, retorna uma resposta de sucesso")]
-    public async Task Handle_ValidRequest_ReturnsSuccessResponse()
+    [Fact]
+    public async Task Handle_WithValidCommand_ShouldCreateProduct()
     {
-
-        var command = CreateProductHandlerTestData.GenerateValidCommand();
-        var product = new Product
+        
+        var command = new CreateProductCommand
         {
-            Id = Guid.NewGuid(),
-            Name = command.Name,
-            Description = command.Description,
-            Price = command.Price,
-            StockQuantity = command.StockQuantity
+            Name = "Produto de teste",
+            Description = "Teste Descrição",
+            Price = 100.0m,
+            StockQuantity = 10
         };
 
-        var result = new CreateProductResult
-        {
-            Id = product.Id,
-            Name = product.Name,
-            Description = product.Description,
-            Price = product.Price,
-            StockQuantity = product.StockQuantity
-        };
+        var product = Product.Create(command.Name, command.Description, command.Price, command.StockQuantity);
+        var expectedResult = new CreateProductResult { Id = product.Id, Name = product.Name };
 
-        _mapper.Map<Product>(command).Returns(product);
-        _mapper.Map<CreateProductResult>(product).Returns(result);
-        _productRepository.CreateAsync(Arg.Any<Product>(), Arg.Any<CancellationToken>())
+        _validatorMock.ValidateAsync(command, Arg.Any<CancellationToken>())
+            .Returns(new FluentValidation.Results.ValidationResult());
+
+        _productRepositoryMock.GetByNameAsync(command.Name, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<Product?>(null));
+
+        _mapperMock.Map<Product>(command).Returns(product);
+        _productRepositoryMock.CreateAsync(product, Arg.Any<CancellationToken>())
             .Returns(product);
+        _mapperMock.Map<CreateProductResult>(product).Returns(expectedResult);
 
-        var createProductResult = await _handler.Handle(command, CancellationToken.None);
+        var result = await _handler.Handle(command, CancellationToken.None);
 
-        createProductResult.Should().NotBeNull();
-        createProductResult.Id.Should().Be(product.Id);
-        createProductResult.Name.Should().Be(product.Name);
-        createProductResult.Price.Should().Be(product.Price);
-        await _productRepository.Received(1).CreateAsync(Arg.Any<Product>(), Arg.Any<CancellationToken>());
+        result.Should().NotBeNull();
+        result.Id.Should().Be(expectedResult.Id);
+        result.Name.Should().Be(expectedResult.Name);
+
+        await _validatorMock.Received(1).ValidateAsync(command, Arg.Any<CancellationToken>());
+        await _productRepositoryMock.Received(1).GetByNameAsync(command.Name, Arg.Any<CancellationToken>());
+        await _productRepositoryMock.Received(1).CreateAsync(product, Arg.Any<CancellationToken>());
     }
 
-    [Fact(DisplayName = "Dados de produto inválidos fornecidos ao criar o produto, em seguida, gera uma exceção de validação")]
-    public async Task Handle_InvalidRequest_ThrowsValidationException()
+    [Fact]
+    public async Task Handle_WithExistingProductName_ShouldThrowException()
     {
-
-        var command = new CreateProductCommand();
-
-        var act = () => _handler.Handle(command, CancellationToken.None);
-
-        await act.Should().ThrowAsync<FluentValidation.ValidationException>();
-    }
-
-    [Fact(DisplayName = "Dado comando válido Ao manipular Então mapeia o comando para a entidade do produto")]
-    public async Task Handle_ValidRequest_MapsCommandToProduct()
-    {
-
-        var command = CreateProductHandlerTestData.GenerateValidCommand();
-        var product = new Product
+        
+        var command = new CreateProductCommand
         {
-            Id = Guid.NewGuid(),
-            Name = command.Name,
-            Description = command.Description,
-            Price = command.Price,
-            StockQuantity = command.StockQuantity
+            Name = "Produto Existente",
+            Description = "Teste Descrição",
+            Price = 100.0m,
+            StockQuantity = 10
         };
 
-        _mapper.Map<Product>(command).Returns(product);
-        _productRepository.CreateAsync(Arg.Any<Product>(), Arg.Any<CancellationToken>())
-            .Returns(product);
+        var existingProduct = Product.Create(command.Name, "Descrição existente", 50.0m, 5);
 
-        await _handler.Handle(command, CancellationToken.None);
+        _validatorMock.ValidateAsync(command, Arg.Any<CancellationToken>())
+            .Returns(new FluentValidation.Results.ValidationResult());
 
-        _mapper.Received(1).Map<Product>(Arg.Is<CreateProductCommand>(c =>
-            c.Name == command.Name &&
-            c.Description == command.Description &&
-            c.Price == command.Price &&
-            c.StockQuantity == command.StockQuantity));
+        _productRepositoryMock.GetByNameAsync(command.Name, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult<Product?>(existingProduct));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _handler.Handle(command, CancellationToken.None));
+
+        await _productRepositoryMock.DidNotReceive().CreateAsync(Arg.Any<Product>(), Arg.Any<CancellationToken>());
     }
 
-    [Fact(DisplayName = "Dado nome de produto duplicado ao criar produto, então lança exceção")]
-    public async Task Handle_DuplicateProductName_ThrowsException()
+    [Fact]
+    public async Task Handle_WithInvalidCommand_ShouldThrowValidationException()
     {
+        
+        var command = new CreateProductCommand
+        {
+            Name = "",
+            Description = "Teste Descrição",
+            Price = -10.0m,
+            StockQuantity = 10
+        };
 
-        var command = CreateProductHandlerTestData.GenerateValidCommand();
-        var existingProduct = new Product { Name = command.Name };
+        var validationFailures = new List<FluentValidation.Results.ValidationFailure>
+        {
+            new FluentValidation.Results.ValidationFailure("Name", "O nome do produto é obrigatório."),
+            new FluentValidation.Results.ValidationFailure("Price", "O preço do produto deve ser maior que 0.")
+        };
 
-        _productRepository.GetByNameAsync(command.Name, Arg.Any<CancellationToken>())
-            .Returns(existingProduct);
+        var validationResult = new FluentValidation.Results.ValidationResult(validationFailures);
 
-        var act = () => _handler.Handle(command, CancellationToken.None);
+        _validatorMock.ValidateAsync(command, Arg.Any<CancellationToken>())
+            .Returns(validationResult);
 
-        await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage($"Produto com nome {command.Name} já existe");
+        
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            _handler.Handle(command, CancellationToken.None));
+
+        
+        await _productRepositoryMock.DidNotReceive().GetByNameAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _productRepositoryMock.DidNotReceive().CreateAsync(Arg.Any<Product>(), Arg.Any<CancellationToken>());
     }
 }

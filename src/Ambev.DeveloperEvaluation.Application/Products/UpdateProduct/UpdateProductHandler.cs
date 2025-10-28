@@ -1,63 +1,37 @@
-﻿using MediatR;
-using FluentValidation;
-using Ambev.DeveloperEvaluation.Domain.Repositories;
+﻿using Ambev.DeveloperEvaluation.Domain.Repositories;
 using Ambev.DeveloperEvaluation.Domain.Entities;
+using AutoMapper;
+using MediatR;
 
 namespace Ambev.DeveloperEvaluation.Application.Products.UpdateProduct;
 
 public class UpdateProductHandler : IRequestHandler<UpdateProductCommand, UpdateProductResult>
 {
     private readonly IProductRepository _productRepository;
+    private readonly IMapper _mapper;
 
-    public UpdateProductHandler(IProductRepository productRepository)
+    public UpdateProductHandler(IProductRepository productRepository, IMapper mapper)
     {
         _productRepository = productRepository;
+        _mapper = mapper;
     }
 
     public async Task<UpdateProductResult> Handle(UpdateProductCommand command, CancellationToken cancellationToken)
     {
-        var validator = new UpdateProductCommandValidator();
-        var validationResult = await validator.ValidateAsync(command, cancellationToken);
-
-        if (!validationResult.IsValid)
-            throw new ValidationException(validationResult.Errors);
-
         var existingProduct = await _productRepository.GetByIdAsync(command.Id, cancellationToken);
+
         if (existingProduct == null)
-            throw new InvalidOperationException($"Produto com ID {command.Id} não encontrado");
+            throw new KeyNotFoundException($"Produto com id {command.Id} não encontrado");
 
-        // Atualiza apenas os campos fornecidos
-        if (!string.IsNullOrEmpty(command.Name))
-        {
-            // Verifica se outro produto já tem esse nome (apenas se nome foi alterado)
-            var productWithSameName = await _productRepository.GetByNameAsync(command.Name, cancellationToken);
-            if (productWithSameName != null && productWithSameName.Id != command.Id)
-                throw new InvalidOperationException($"Produto com nome {command.Name} já existe");
+        var name = command.Name ?? existingProduct.Name;
+        var description = command.Description ?? existingProduct.Description;
+        var price = command.Price ?? existingProduct.Price;
+        var stockQuantity = command.StockQuantity ?? existingProduct.StockQuantity;
 
-            existingProduct.Name = command.Name;
-        }
-
-        if (!string.IsNullOrEmpty(command.Description))
-            existingProduct.Description = command.Description;
-
-        if (command.Price.HasValue)
-            existingProduct.Price = command.Price.Value;
-
-        if (command.StockQuantity.HasValue)
-            existingProduct.StockQuantity = command.StockQuantity.Value;
-
-        existingProduct.UpdatedAt = DateTime.UtcNow;
+        existingProduct.Update(name, description, price, stockQuantity);
 
         var updatedProduct = await _productRepository.UpdateAsync(existingProduct, cancellationToken);
 
-        return new UpdateProductResult
-        {
-            Id = updatedProduct.Id,
-            Name = updatedProduct.Name,
-            Description = updatedProduct.Description,
-            Price = updatedProduct.Price,
-            StockQuantity = updatedProduct.StockQuantity,
-            UpdatedAt = updatedProduct.UpdatedAt
-        };
+        return _mapper.Map<UpdateProductResult>(updatedProduct);
     }
 }

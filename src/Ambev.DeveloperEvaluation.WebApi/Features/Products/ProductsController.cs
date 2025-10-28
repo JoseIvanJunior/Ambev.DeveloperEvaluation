@@ -10,6 +10,8 @@ using Ambev.DeveloperEvaluation.WebApi.Features.Products.GetProduct;
 using Ambev.DeveloperEvaluation.WebApi.Features.Products.UpdateProduct;
 using Ambev.DeveloperEvaluation.WebApi.Common;
 using AutoMapper;
+using FluentValidation;
+using Microsoft.Extensions.Logging;
 
 namespace Ambev.DeveloperEvaluation.WebApi.Features.Products;
 
@@ -19,33 +21,66 @@ public class ProductsController : BaseController
 {
     private readonly IMediator _mediator;
     private readonly IMapper _mapper;
+    private readonly ILogger<ProductsController> _logger;
 
-    public ProductsController(IMediator mediator, IMapper mapper)
+    public ProductsController(IMediator mediator, IMapper mapper, ILogger<ProductsController> logger)
     {
         _mediator = mediator;
         _mapper = mapper;
+        _logger = logger;
     }
 
     [HttpPost]
     [ProducesResponseType(typeof(ApiResponseWithData<CreateProductResponse>), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> CreateProduct(
-        [FromBody] CreateProductRequest request,
-        CancellationToken cancellationToken = default)
+    public async Task<IActionResult> CreateProduct([FromBody] CreateProductRequest request, CancellationToken cancellationToken)
     {
-        var command = _mapper.Map<CreateProductCommand>(request);
-        var result = await _mediator.Send(command, cancellationToken);
-        var response = _mapper.Map<CreateProductResponse>(result);
+        try
+        {
+            var command = _mapper.Map<CreateProductCommand>(request);
+            var result = await _mediator.Send(command, cancellationToken);
 
-        return CreatedAtAction(
-            nameof(GetProductById),
-            new { id = result.Id },
-            new ApiResponseWithData<CreateProductResponse>
+            var response = _mapper.Map<CreateProductResponse>(result);
+
+            var apiResponse = new ApiResponseWithData<CreateProductResponse>
             {
                 Success = true,
-                Data = response,
-                Message = "Produtos criados com sucesso"
-            });
+                Message = "Produto criado com sucesso",
+                Data = response
+            };
+
+            return CreatedAtAction(nameof(GetProductById), new { id = response.Id }, apiResponse);
+        }
+        catch (ValidationException ex)
+        {
+            // Remover a propriedade Error que não existe
+            var apiResponse = new ApiResponse
+            {
+                Success = false,
+                Message = $"Dados inválidos: {string.Join("; ", ex.Errors.Select(e => e.ErrorMessage))}"
+            };
+            return BadRequest(apiResponse);
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("Já existe um produto"))
+        {
+            var apiResponse = new ApiResponse
+            {
+                Success = false,
+                Message = ex.Message
+            };
+            return BadRequest(apiResponse);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro ao criar produto");
+
+            var apiResponse = new ApiResponse
+            {
+                Success = false,
+                Message = "Ocorreu um erro inesperado"
+            };
+            return StatusCode(500, apiResponse);
+        }
     }
 
     [HttpGet("{id:guid}")]
@@ -55,26 +90,38 @@ public class ProductsController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        var query = new GetProductQuery { Id = id };
-        var result = await _mediator.Send(query, cancellationToken);
-
-        if (result == null)
+        try
         {
-            return NotFound(new ApiResponse
+            var query = new GetProductQuery { Id = id };
+            var result = await _mediator.Send(query, cancellationToken);
+
+            if (result == null)
             {
-                Success = false,
-                Message = "Produto não encontrado"
+                return NotFound(new ApiResponse
+                {
+                    Success = false,
+                    Message = "Produto não encontrado"
+                });
+            }
+
+            var response = _mapper.Map<GetProductResponse>(result);
+
+            return Ok(new ApiResponseWithData<GetProductResponse>
+            {
+                Success = true,
+                Data = response,
+                Message = "Produto recuperado com sucesso"
             });
         }
-
-        var response = _mapper.Map<GetProductResponse>(result);
-
-        return Ok(new ApiResponseWithData<GetProductResponse>
+        catch (Exception ex)
         {
-            Success = true,
-            Data = response,
-            Message = "Produtos recuperados com sucesso"
-        });
+            _logger.LogError(ex, "Erro ao buscar produto por ID: {ProductId}", id);
+            return StatusCode(500, new ApiResponse
+            {
+                Success = false,
+                Message = "Ocorreu um erro inesperado"
+            });
+        }
     }
 
     [HttpGet]
@@ -82,16 +129,28 @@ public class ProductsController : BaseController
     public async Task<IActionResult> GetAllProducts(
         CancellationToken cancellationToken = default)
     {
-        var query = new GetProductsQuery();
-        var result = await _mediator.Send(query, cancellationToken);
-        var response = _mapper.Map<IEnumerable<GetProductResponse>>(result);
-
-        return Ok(new ApiResponseWithData<IEnumerable<GetProductResponse>>
+        try
         {
-            Success = true,
-            Data = response,
-            Message = "Produtos recuperados com sucesso"
-        });
+            var query = new GetProductsQuery();
+            var result = await _mediator.Send(query, cancellationToken);
+            var response = _mapper.Map<IEnumerable<GetProductResponse>>(result);
+
+            return Ok(new ApiResponseWithData<IEnumerable<GetProductResponse>>
+            {
+                Success = true,
+                Data = response,
+                Message = "Produtos recuperados com sucesso"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro ao buscar todos os produtos");
+            return StatusCode(500, new ApiResponse
+            {
+                Success = false,
+                Message = "Ocorreu um erro inesperado"
+            });
+        }
     }
 
     [HttpPut("{id:guid}")]
@@ -103,18 +162,38 @@ public class ProductsController : BaseController
         [FromBody] UpdateProductRequest request,
         CancellationToken cancellationToken = default)
     {
-        var command = _mapper.Map<UpdateProductCommand>(request);
-        command.Id = id;
-
-        var result = await _mediator.Send(command, cancellationToken);
-        var response = _mapper.Map<UpdateProductResponse>(result);
-
-        return Ok(new ApiResponseWithData<UpdateProductResponse>
+        try
         {
-            Success = true,
-            Data = response,
-            Message = "Produto atualizado com sucesso"
-        });
+            var command = _mapper.Map<UpdateProductCommand>(request);
+            command.Id = id;
+
+            var result = await _mediator.Send(command, cancellationToken);
+            var response = _mapper.Map<UpdateProductResponse>(result);
+
+            return Ok(new ApiResponseWithData<UpdateProductResponse>
+            {
+                Success = true,
+                Data = response,
+                Message = "Produto atualizado com sucesso"
+            });
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound(new ApiResponse
+            {
+                Success = false,
+                Message = "Produto não encontrado"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro ao atualizar produto: {ProductId}", id);
+            return StatusCode(500, new ApiResponse
+            {
+                Success = false,
+                Message = "Ocorreu um erro inesperado"
+            });
+        }
     }
 
     [HttpDelete("{id:guid}")]
@@ -124,22 +203,34 @@ public class ProductsController : BaseController
         Guid id,
         CancellationToken cancellationToken = default)
     {
-        var command = new DeleteProductCommand { Id = id };
-        var result = await _mediator.Send(command, cancellationToken);
-
-        if (!result)
+        try
         {
-            return NotFound(new ApiResponse
+            var command = new DeleteProductCommand { Id = id };
+            var result = await _mediator.Send(command, cancellationToken);
+
+            if (!result)
             {
-                Success = false,
-                Message = "Produto não encontrado"
+                return NotFound(new ApiResponse
+                {
+                    Success = false,
+                    Message = "Produto não encontrado"
+                });
+            }
+
+            return Ok(new ApiResponse
+            {
+                Success = true,
+                Message = "Produto excluído com sucesso"
             });
         }
-
-        return Ok(new ApiResponse
+        catch (Exception ex)
         {
-            Success = true,
-            Message = "Produto excluído com sucesso"
-        });
+            _logger.LogError(ex, "Erro ao excluir produto: {ProductId}", id);
+            return StatusCode(500, new ApiResponse
+            {
+                Success = false,
+                Message = "Ocorreu um erro inesperado"
+            });
+        }
     }
 }

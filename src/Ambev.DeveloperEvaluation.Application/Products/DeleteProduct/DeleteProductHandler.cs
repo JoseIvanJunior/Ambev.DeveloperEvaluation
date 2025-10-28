@@ -1,5 +1,5 @@
-﻿using MediatR;
-using Ambev.DeveloperEvaluation.Domain.Repositories;
+﻿using Ambev.DeveloperEvaluation.Domain.Repositories;
+using MediatR;
 
 namespace Ambev.DeveloperEvaluation.Application.Products.DeleteProduct;
 
@@ -14,6 +14,12 @@ public class DeleteProductHandler : IRequestHandler<DeleteProductCommand, bool>
 
     public async Task<bool> Handle(DeleteProductCommand command, CancellationToken cancellationToken)
     {
-        return await _productRepository.DeleteAsync(command.Id, cancellationToken);
+        var product = await _productRepository.GetByIdAsync(command.Id, cancellationToken);
+
+        if (product == null)
+            return false;
+
+        await _productRepository.DeleteAsync(command.Id, cancellationToken);
+        return true;
     }
 }
