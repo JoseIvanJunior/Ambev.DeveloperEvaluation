@@ -53,7 +53,6 @@ public class ProductsController : BaseController
         }
         catch (ValidationException ex)
         {
-            // Remover a propriedade Error que não existe
             var apiResponse = new ApiResponse
             {
                 Success = false,
@@ -106,7 +105,7 @@ public class ProductsController : BaseController
 
             var response = _mapper.Map<GetProductResponse>(result);
 
-            return Ok(new ApiResponseWithData<GetProductResponse>
+            return base.Ok(new ApiResponseWithData<GetProductResponse>
             {
                 Success = true,
                 Data = response,
@@ -135,7 +134,7 @@ public class ProductsController : BaseController
             var result = await _mediator.Send(query, cancellationToken);
             var response = _mapper.Map<IEnumerable<GetProductResponse>>(result);
 
-            return Ok(new ApiResponseWithData<IEnumerable<GetProductResponse>>
+            return base.Ok(new ApiResponseWithData<IEnumerable<GetProductResponse>>
             {
                 Success = true,
                 Data = response,
@@ -170,7 +169,7 @@ public class ProductsController : BaseController
             var result = await _mediator.Send(command, cancellationToken);
             var response = _mapper.Map<UpdateProductResponse>(result);
 
-            return Ok(new ApiResponseWithData<UpdateProductResponse>
+            return base.Ok(new ApiResponseWithData<UpdateProductResponse>
             {
                 Success = true,
                 Data = response,

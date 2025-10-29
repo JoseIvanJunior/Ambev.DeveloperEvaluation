@@ -3,6 +3,7 @@ using System;
 using Ambev.DeveloperEvaluation.ORM;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Ambev.DeveloperEvaluation.ORM.Migrations
 {
     [DbContext(typeof(DefaultContext))]
-    partial class DefaultContextModelSnapshot : ModelSnapshot
+    [Migration("20251028203715_CreateSalesTable")]
+    partial class CreateSalesTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -64,18 +67,8 @@ namespace Ambev.DeveloperEvaluation.ORM.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("BranchId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("BranchName")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.Property<Guid>("CustomerId")
                         .HasColumnType("uuid");
-
-                    b.Property<decimal>("DiscountPercentage")
-                        .HasColumnType("numeric");
 
                     b.Property<Guid>("ProductId")
                         .HasColumnType("uuid");
@@ -85,10 +78,6 @@ namespace Ambev.DeveloperEvaluation.ORM.Migrations
 
                     b.Property<DateTime>("SaleDate")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("SaleNumber")
-                        .IsRequired()
-                        .HasColumnType("text");
 
                     b.Property<Guid>("SellerId")
                         .HasColumnType("uuid");
@@ -161,9 +150,9 @@ namespace Ambev.DeveloperEvaluation.ORM.Migrations
                         new
                         {
                             Id = new Guid("b37b4d38-8dc7-45b4-b8e0-5a4ef2b2ad21"),
-                            CreatedAt = new DateTime(2025, 10, 28, 23, 20, 39, 89, DateTimeKind.Utc).AddTicks(733),
+                            CreatedAt = new DateTime(2025, 10, 28, 20, 37, 14, 731, DateTimeKind.Utc).AddTicks(6990),
                             Email = "admin@ambev.com",
-                            Password = "$2a$11$hSLEowe9TBJIoX0cx8RN0ejsyXGygE/98e0SMddEjpw5rKfLCC3r6",
+                            Password = "$2a$11$DxeUv0mBWqHElgco2J/gNuqn2kgYdJTQcgi9uD8Uz6Pezya8GzkN6",
                             Phone = "+5511999999999",
                             Role = "Admin",
                             Status = "Active",

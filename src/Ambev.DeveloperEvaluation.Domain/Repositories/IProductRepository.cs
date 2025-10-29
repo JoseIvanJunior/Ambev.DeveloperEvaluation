@@ -4,7 +4,7 @@ namespace Ambev.DeveloperEvaluation.Domain.Repositories;
 
 public interface IProductRepository
 {
-    Task<Product?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
+    Task<Product?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
     Task<Product?> GetByNameAsync(string name, CancellationToken cancellationToken);
 

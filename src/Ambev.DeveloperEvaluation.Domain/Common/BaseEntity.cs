@@ -1,23 +1,44 @@
-﻿using Ambev.DeveloperEvaluation.Common.Validation;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 
-namespace Ambev.DeveloperEvaluation.Domain.Common;
-
-public class BaseEntity : IComparable<BaseEntity>
+namespace Ambev.DeveloperEvaluation.Domain.Common
 {
-    public Guid Id { get; set; }
-
-    public Task<IEnumerable<ValidationErrorDetail>> ValidateAsync()
+    public abstract class BaseEntity
     {
-        return Validator.ValidateAsync(this);
-    }
+        private readonly List<DomainEvent> _domainEvents = new();
 
-    public int CompareTo(BaseEntity? other)
-    {
-        if (other == null)
+        public Guid Id { get; set; }
+
+        public IReadOnlyCollection<DomainEvent> DomainEvents => _domainEvents.AsReadOnly();
+
+        public void AddDomainEvent(DomainEvent domainEvent)
         {
-            return 1;
+            _domainEvents.Add(domainEvent);
         }
 
-        return other!.Id.CompareTo(Id);
+        public void ClearDomainEvents()
+        {
+            _domainEvents.Clear();
+        }
+
+        public override bool Equals(object? obj)
+        {
+            if (obj is not BaseEntity other)
+                return false;
+
+            if (ReferenceEquals(this, other))
+                return true;
+
+            if (GetType() != other.GetType())
+                return false;
+
+            return Id == other.Id;
+        }
+
+        public override int GetHashCode()
+        {
+            return (GetType().ToString() + Id).GetHashCode();
+        }
     }
 }
