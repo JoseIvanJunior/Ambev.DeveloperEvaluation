@@ -21,9 +21,6 @@ namespace Ambev.DeveloperEvaluation.Application.Sales.CreateSale
 
             RuleFor(x => x.SellerId)
                 .NotEmpty().WithMessage("É necessário o ID do vendedor");
-
-            RuleFor(x => x.BranchId)
-                .NotEmpty().WithMessage("O ID da filial é obrigatório");
         }
     }
 }
